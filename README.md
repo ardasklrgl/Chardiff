@@ -1,35 +1,52 @@
-# Character Diffusion Language Models
+# Character Diffusion Language Model
 
-A small, from-scratch experiment in character-level text generation. The main question is how a full-sequence discrete diffusion model compares with a similarly sized autoregressive Transformer under a limited Colab GPU budget.
+A small experiment in character level text generation. The main question is how a full sequence discrete diffusion model compares with a similarly sized autoregressive Transformer under the same budget.
 
-## Start here
+The results show that the Transformer simply outperforms the Diffusion model when it comes to character level language modelling, at a constrained budget. This doesn't mean a very good diffusion language model is unachieveable, even for character level models. Scaling could perhaps be the solution.
 
-| Notebook | What it does |
+|  |  |
 | --- | --- |
 | [Character Diffusion Language Model](Simple_Character_D3PM.ipynb) | Trains a roughly 5M-parameter masked D3PM and demonstrates unmasking, reconstruction, and generation. |
-| [Character Autoregressive Transformer](Autoregressive_Character_Transformer.ipynb) | Trains a similarly sized causal next-character baseline on the same cached corpus. |
-| [Compare Character Models](Compare_Character_Models.ipynb) | Loads saved checkpoints and evaluates both models on the same held-out windows and sampling settings. No retraining. |
-| [Revising Character D3PM](Revising_Character_D3PM.ipynb) | An additional experiment that allows characters to be replaced and re-masked. |
+| [Character Autoregressive Transformer](Autoregressive_Character_Transformer.ipynb) | Trains a similarly sized causal next character baseline on the same corpus. |
 
-The [learning guide](LEARNING_GUIDE.md) explains Transformers, discrete diffusion, the training objectives, and this project's design from first principles. Earlier experiments are in [`old experiments`](old%20experiments/).
 
 ## Results from one TinyStories run
 
 | Model | Completed updates | Training time | Held-out result | Free generation |
 | --- | ---: | ---: | --- | --- |
 | Masked D3PM | 81,704 | 135 min | Variational bound: **1.931 BPC** (Monte Carlo SE 0.069) | Often malformed words and incoherent sentences |
-| Revising D3PM | 78,190 | 135 min | Variational bound: **3.107 BPC** (Monte Carlo SE 0.055) | Worse in this configuration; remaining planned updates were not run |
 | Autoregressive Transformer | 81,704 | 178 min | Exact next-character NLL: **0.898 BPC** (Monte Carlo SE 0.009) | Mostly readable TinyStories-style text, with semantic mistakes |
 
-These are **single runs**, and training times were different. The autoregressive NLL and diffusion variational bounds are different measurements; their numeric difference is not a likelihood gap. The result shows that this small autoregressive baseline generated much better text than these particular full-sequence diffusion implementations. It does not establish a general limit for diffusion language models.
+These are **single runs**, and training times were different. The autoregressive NLL and diffusion variational bounds are different measurements, their numeric difference is not a likelihood gap. 
 
-Representative free-generation excerpts from the saved runs:
+The result shows that this small autoregressive baseline generated much better text than these particular full sequence diffusion implementations. It does not establish a general limit for diffusion language models.
 
-> **Masked D3PM:** “omether. She hoppent see whit inate to this to got foom good big neess.”
+## Sample Results
 
-> **Autoregressive:** “Once upon a time, there was a little girl named Lily. She loved to play outside in the sun. One day, she saw a butterfly on the…”
+| Model | Unconditional generation| Prefix completion |
+| --- | ---: | ---: |
+| Masked D3PM | tree botter and is proud, behoneten up the times had datch the girl their they just both leafound a ler. They sa had a. Theer wanted, a toge home, it is very they flaigher wordes. When the tree saw it who | Once upon a time, there was a little boring towee specsin, they more for heep, somet to theything alled creamed...|
+| Autoregressive Transformer | he felt much better. He said, "Hello! Can I play with you?" The bear smiled and said, "Of course, let's eat that!" They continued to play hide-and-seek and learn from their name. They all had so much fun together. At the end of the day... | Once upon a time, there was a little boy named Timmy. Timmy loved to draw with his creative crayons. He had many crayons and papers... |
 
-These excerpts illustrate output quality; the [comparison notebook](Compare_Character_Models.ipynb) produces a fixed seed and temperature grid for a fuller inspection.
+### Example run from the CharDiff model
+
+t=128	
+▮▮▮▮▮▮▮...
+
+t=89	
+om▮t▮▮▮▮ ▮▮e▮▮▮▮▮e▮▮ ▮▮▮▮...
+
+t=64	
+omet▮▮▮. S▮e▮▮▮▮▮e▮▮ s▮▮▮w▮i▮▮ina▮▮▮▮o▮▮h...
+
+t=38	
+omet▮▮▮. S▮e▮h▮p▮e▮▮ s▮▮▮w▮i▮▮inate ▮o▮▮h▮▮ ▮▮▮got...
+
+t=12	
+ometh▮r. S▮e hoppe▮t s▮▮▮whi▮ inate to▮this to got foom▮go▮d big▮neess...
+
+t=0	
+omether. She hoppent see whit inate to this to got foom good big neess.â€ so the wiped them joke a firsts...
 
 ## Run the notebooks
 
