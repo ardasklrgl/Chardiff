@@ -1,86 +1,46 @@
-# Discrete Diffusion Language Models: Character & Byte-Level LLMs
+# Character Diffusion Language Models
 
-A PyTorch research implementation of Discrete Diffusion Language Models operating directly over discrete tokens (characters and universal raw UTF-8 bytes) as 1D "pixels" on an unmasking canvas.
+A small, from-scratch experiment in character-level text generation. The main question is how a full-sequence discrete diffusion model compares with a similarly sized autoregressive Transformer under a limited Colab GPU budget.
 
----
+## Start here
 
-## Simple character D3PM demo
+| Notebook | What it does |
+| --- | --- |
+| [Character Diffusion Language Model](Simple_Character_D3PM.ipynb) | Trains a roughly 5M-parameter masked D3PM and demonstrates unmasking, reconstruction, and generation. |
+| [Character Autoregressive Transformer](Autoregressive_Character_Transformer.ipynb) | Trains a similarly sized causal next-character baseline on the same cached corpus. |
+| [Compare Character Models](Compare_Character_Models.ipynb) | Loads saved checkpoints and evaluates both models on the same held-out windows and sampling settings. No retraining. |
+| [Revising Character D3PM](Revising_Character_D3PM.ipynb) | An additional experiment that allows characters to be replaced and re-masked. |
 
-[`Simple_Character_D3PM.ipynb`](Simple_Character_D3PM.ipynb) is a self-contained notebook for training a small character language model from scratch on Colab.
+The [learning guide](LEARNING_GUIDE.md) explains Transformers, discrete diffusion, the training objectives, and this project's design from first principles. Earlier experiments are in [`old experiments`](old%20experiments/).
 
-- **Model:** approximately 5M parameters, 6 bidirectional Transformer blocks, width 256, and a 256-character context.
-- **Diffusion:** 128 absorbing-state steps with an analytical reverse sampler and the exact timestep-weighted masked negative-ELBO objective.
-- **Data:** a cached subset of TinyStories (approximately 20M training characters and 1M validation characters), or an uploaded UTF-8 text corpus.
-- **Training:** GPU benchmark, mixed precision, gradient accumulation, validation diagnostics, and a default 135-minute session budget. Actual training speed and generation quality require a GPU run.
-- **Google Drive:** automatically resumes the latest verified checkpoint in `MyDrive/CharD3PM/tinystories_char_5m`. Saves every 5 minutes or 500 completed updates, on validation improvements, and on normal stops. Keeps the three newest snapshots plus the best evaluated snapshot.
-- **Recovery:** checkpoints include weights, optimizer, scheduler, gradient scaler, random states, vocabulary, configuration, and progress. Checksummed manifests distinguish complete saves from interrupted copies; corrupted newest saves fall back to older snapshots.
-- **Demo:** unconditional unmasking trajectories, held-out reconstruction, prefix completion, and infilling.
+## Results from one TinyStories run
 
-Open the notebook in Colab, select a GPU runtime, and run from the top. Authorize Google Drive when prompted. Keep the same `RUN_NAME` to resume after a disconnect; change it to start a separate experiment. Progress since the last completed save can be lost if the runtime is terminated.
+| Model | Completed updates | Training time | Held-out result | Free generation |
+| --- | ---: | ---: | --- | --- |
+| Masked D3PM | 81,704 | 135 min | Variational bound: **1.931 BPC** (Monte Carlo SE 0.069) | Often malformed words and incoherent sentences |
+| Revising D3PM | 78,190 | 135 min | Variational bound: **3.107 BPC** (Monte Carlo SE 0.055) | Worse in this configuration; remaining planned updates were not run |
+| Autoregressive Transformer | 81,704 | 178 min | Exact next-character NLL: **0.898 BPC** (Monte Carlo SE 0.009) | Mostly readable TinyStories-style text, with semantic mistakes |
 
-Local verification: `python -m pytest -q tests/test_simple_d3pm_notebook.py`. Tests cover the objective against an explicit categorical KL, generation invariants, exact CPU resume, checkpoint recovery, data consistency, and fresh/resumed execution of every notebook cell.
+These are **single runs**, and training times were different. The autoregressive NLL and diffusion variational bounds are different measurements; their numeric difference is not a likelihood gap. The result shows that this small autoregressive baseline generated much better text than these particular full-sequence diffusion implementations. It does not establish a general limit for diffusion language models.
 
----
+Representative free-generation excerpts from the saved runs:
 
-## 🚀 Flagship Notebook for Google Colab
+> **Masked D3PM:** “omether. She hoppent see whit inate to this to got foom good big neess.”
 
-### **[`Distilled_Byte_Diffusion_350M_Chatbot.ipynb`](file:///Users/ardasiklaroglu/chardiffnew/Distilled_Byte_Diffusion_350M_Chatbot.ipynb)**
-A **350-Million Parameter Discrete Diffusion Language Model & Conversational Chatbot**:
-- **Scale**: Configurable preset (`350M`, `110M`, `45M`, `tiny`).
-  - `350M`: 24 Layers, 1024 Hidden Dim, 16 Attention Heads (~357M Parameters).
-  - Fits within **~7.5 GB VRAM** in FP16 with FlashAttention on a free Google Colab Tesla T4 GPU (16 GB).
-- **Universal Raw UTF-8 Byte Vocabulary (257 Tokens)**:
-  - Tokens `0..255`: Raw UTF-8 byte stream.
-  - Token `256`: Reserved for absorbing diffusion state (`[MASK]`).
-  - Zero out-of-vocabulary tokens: native support for all emojis (🤖, 🚀), multilingual scripts, and code.
-  - Minimal classification head overhead ($1024 \times 257 = 263\text{K}$ params vs tens of millions for subword BPE).
-- **Sequence-Level Distillation on Curated GPT-4 Conversations**:
-  - Automatically streams and packs 52,000+ GPT-4 Alpaca instruction dialogues into 1024-byte canvases (`User: ... \nAssistant: ...`).
-- **Interactive Chatbot Reverse Sampler (Frozen Prefix Clamping)**:
-  - User prompt bytes remain strictly frozen at noise level $t=0$ throughout all 128 diffusion steps.
-  - The assistant response region starts fully masked at $t=128$ and is iteratively unmasked using analytical Bayes posteriors.
-- **Google Drive Auto-Checkpointing & Live Trajectories**:
-  - Mounts Google Drive and auto-checkpoints every 500 steps with resume support.
-  - Renders live visual unmasking trajectories during evaluation intervals.
+> **Autoregressive:** “Once upon a time, there was a little girl named Lily. She loved to play outside in the sun. One day, she saw a butterfly on the…”
 
----
+These excerpts illustrate output quality; the [comparison notebook](Compare_Character_Models.ipynb) produces a fixed seed and temperature grid for a fuller inspection.
 
-## Shakespeare Character-Level Models
+## Run the notebooks
 
-1. **[`Advanced_Character_Diffusion_Shakespeare.ipynb`](file:///Users/ardasiklaroglu/chardiffnew/Advanced_Character_Diffusion_Shakespeare.ipynb)**:
-   - **17.2M Parameters** (8 Layers, 384 Hidden Dim, 8 Heads).
-   - RoPE (Rotary Position Embeddings) and Self-Conditioning ($x_t + \hat{x}_0$).
-   - Dynamic Re-Masking ("The Eraser" Sampler).
-   - Complete Works Dataset (5.4MB).
+**Colab:** open a training notebook, select a GPU runtime, and run all cells. Checkpoints and the verified corpus are saved under `MyDrive/CharD3PM`. Run the masked D3PM notebook before the AR notebook so both use the exact same data. Later, run the comparison notebook against the saved checkpoints.
 
-2. **[`Character_Diffusion_Shakespeare.ipynb`](file:///Users/ardasiklaroglu/chardiffnew/Character_Diffusion_Shakespeare.ipynb)**:
-   - Standard baseline 16.6M parameter model on Tiny Shakespeare.
+**Local Jupyter:** install `torch numpy matplotlib datasets huggingface_hub notebook` in your Python environment and run the same notebooks. Outside Colab, they automatically use `./character_d3pm_runs`. The AR notebook expects the masked D3PM run's cached corpus by default; run D3PM first, or set `cfg['reference_run_name'] = None` for an independent AR dataset. Full training is intended for a CUDA GPU; small CPU tests work. Set `TRAIN=False` in a training notebook to load its checkpoint for inspection. To evaluate Colab runs locally, copy both complete run folders, including `data` and `checkpoints`, into the local run root.
 
----
+The comparison notebook writes `character_model_comparison.json` into the selected run root. Checkpoints and dataset caches are not included in this repository.
 
-## Modular Local Codebase
+## Method
 
-- [`data.py`](file:///Users/ardasiklaroglu/chardiffnew/data.py): Universal `ByteTokenizer` (257 vocab) and `DistilledChatDataset`, alongside `CharTokenizer` and `ShakespeareDataset`.
-- [`model.py`](file:///Users/ardasiklaroglu/chardiffnew/model.py): `ByteDiffusionTransformer` with RoPE, FlashAttention, Self-Conditioning ($x_t + \hat{x}_0$), and presets (`350M`, `110M`, `45M`, `tiny`).
-- [`diffusion.py`](file:///Users/ardasiklaroglu/chardiffnew/diffusion.py): Discrete diffusion engine with `chat_sample` (Frozen Prefix Clamping) and `infill_sample` (bidirectional cloze).
-- [`train.py`](file:///Users/ardasiklaroglu/chardiffnew/train.py): Training pipeline supporting `--dataset {shakespeare,alpaca}` and `--preset {tiny,45M,110M,350M}`.
-- [`sample.py`](file:///Users/ardasiklaroglu/chardiffnew/sample.py): Inference script supporting `--chat` (interactive terminal chat), `--prefix`, and `--infill`.
-- [`tests/test_diffusion.py`](file:///Users/ardasiklaroglu/chardiffnew/tests/test_diffusion.py): Unit test suite covering all byte diffusion, RoPE, and clamping features.
+All three main models use 256-character windows from a cached subset of [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories). The masked D3PM uses a 128-step absorbing-mask process and a bidirectional Transformer; the AR baseline uses causal attention and next-character cross-entropy. The revising model adds random character substitutions to the corruption process. Each training notebook is self-contained and saves verified, resumable checkpoints.
 
----
-
-## Core Techniques
-
-### 1. Self-Conditioning ($x_t + \hat{x}_0$)
-In standard discrete diffusion, the model evaluates each noise step in isolation. With self-conditioning:
-$$\hat{p}_\theta(x_0 \mid x_t, t, \hat{x}_0^{(t+1)})$$
-During training, with 50% probability a preliminary un-grad pass generates candidate tokens $\hat{x}_0$, which are embedded and added to the input. During inference, this gives the model uninterrupted memory from the previous unmasking step.
-
-### 2. Rotary Position Embeddings (RoPE)
-$$\mathbf{q}_m = \mathbf{R}_m \mathbf{W}_q \mathbf{x}_m, \quad \mathbf{k}_n = \mathbf{R}_n \mathbf{W}_k \mathbf{x}_n$$
-Relative character offsets $(m - n)$ are directly encoded into attention dot products, critical for learning character bigrams, trigrams, and word stems across any position in the line.
-
-### 3. Dynamic Re-Masking (The "Eraser")
-At early timesteps ($t > 12$), tokens unmasked with low confidence ($< 0.22$) are subject to stochastic re-masking:
-$$\gamma_t = 0.12 \times \frac{t}{T}$$
-This prevents early guesses made when the text was 90% blank from trapping the model into awkward phrasing.
+References: [D3PM](https://arxiv.org/abs/2107.03006) · [Block Diffusion](https://arxiv.org/abs/2503.09573) · [TinyStories](https://arxiv.org/abs/2305.07759)
